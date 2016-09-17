@@ -260,8 +260,7 @@ def launch_simple(robotname,object_set,objectname,use_box=False):
 
 
 def launch_balls(robotname,num_balls=10):
-	"""Launches a very simple program that simulates a robot grasping an object from one of the
-	databases. It first allows a user to position the robot's free-floating base in a GUI. 
+	"""Launches a very simple program that simulates a robot grasping balls from a box. It first allows a user to position the robot's free-floating base in a GUI. 
 	Then, it sets up a simulation with those initial conditions, and launches a visualization.
 	The controller closes the hand, and then lifts the hand upward.  The output of the robot's
 	tactile sensors are printed to the console.
@@ -343,6 +342,7 @@ def launch_balls(robotname,num_balls=10):
 		vis.lock()
 		sim.simulate(0.01)
 		sim.updateWorld()
+		# print sim.world.rigidObject(0).getTransform()[1]
 		vis.unlock()
 		t1 = time.time()
 		time.sleep(max(0.01-(t1-t0),0.001))
