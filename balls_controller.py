@@ -71,7 +71,7 @@ class StateMachineController(ReflexController):
 		if self.state == 'idle':
 			self.go_to(controller,current_pos,start_pos)
 			self.open_hand()
-			if time>self.last_state_end_t+0.3 and len(self.waiting_list)>0:
+			if time>self.last_state_end_t+1 and len(self.waiting_list)>0:
 				self.set_state('find_target')
 			elif len(self.waiting_list)<1:
 				print "Finished! Total score is",self.score,"/",self.num_ball
