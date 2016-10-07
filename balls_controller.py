@@ -63,7 +63,7 @@ class StateMachineController(ReflexController):
 				print "  finger 3:",[int(v) for v in f3_contact]
 			except:
 				pass
-
+		
 		#controller state machine
 		if self.print_flag==1:
 			print "State:",self.state
@@ -81,13 +81,15 @@ class StateMachineController(ReflexController):
 			self.target=self.find_target();
 			self.set_state('pick_target')
 		elif self.state == 'pick_target':
-			if self.target_is_not_moving:
-				pass
-			else:
-				self.set_state('find_target')
-				print 'target is moving!!!'
+
+			
 			if time<self.last_state_end_t+1:
 				self.go_to(controller,current_pos,(self.target[0],vectorops.add(self.target[1],[0,0,0.2])))
+				if self.target_is_not_moving():
+					pass
+				else:
+					self.set_state('find_target')
+					print 'target is moving!!!'
 			elif time<self.last_state_end_t+1.5:
 				self.go_to(controller,current_pos,self.target)
 			elif time<self.last_state_end_t+2:
@@ -125,16 +127,18 @@ class StateMachineController(ReflexController):
 	def find_target(self):
 		self.current_target=self.waiting_list[0]
 		best_p=self.sim.world.rigidObject(self.current_target).getTransform()[1]
+		self.current_target_pos=best_p
 		for i in self.waiting_list:
 			p=self.sim.world.rigidObject(i).getTransform()[1]
-			# print i,'distance to center',vectorops.distance([0,0],[p[0],p[1]])
+			# print i,p
 			if p[2]>best_p[2]+0.05:
 				self.current_target=i
+				self.current_target_pos=p
 				print 'higher is easier!'
 				best_p=p
 			elif vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
 				self.current_target=i
-				self.current_target_pos=p
+				self.current_target_pos=p		
 				best_p=p
 		d_x=0
 		if best_p[0]>0.15:
@@ -145,7 +149,8 @@ class StateMachineController(ReflexController):
 			print 'too close to the wall!!'
 		#here is hardcoding the best relative position for grasp the ball
 		target=(face_down,vectorops.add(best_p,[d_x,0,0.16]))
-		print self.current_target		
+		print self.current_target	
+		print 'find target at:',self.current_target_pos	
 		return target
 	def go_to(self,controller,current_pos,goal_pos):
 		t=vectorops.distance(current_pos[1],goal_pos[1])/move_speed
@@ -170,9 +175,13 @@ class StateMachineController(ReflexController):
 		else:
 			return False
 	def target_is_not_moving(self):
-		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.001:
+
+		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.02:
 			return True
 		else:
+			print 'old position',self.current_target_pos
+			print 'current position',self.sim.world.rigidObject(self.current_target).getTransform()[1]
+			print 'position for 0',self.sim.world.rigidObject(0).getTransform()[1]
 			return False
 
 
