@@ -2,14 +2,16 @@ from klampt import *
 from klampt.math import vectorops,so3,se3
 from moving_base_control import *
 from reflex_control import *
-import time
-c_hand=0.35
-o_hand=0.4
-pre_hand=0.7
+# import time
+c_hand=0.3
+o_hand=0.43
+pre_hand=0.75
 close_hand=[c_hand,c_hand,c_hand,pre_hand]
-open_hand=[o_hand,o_hand,o_hand+0.1,pre_hand]
+open_hand=[o_hand,o_hand,o_hand,pre_hand]
 move_speed=0.8;
-face_down=[1,0,0,0,-1,0,0,0,-1]
+face_down_forward=[1,0,0,0,-1,0,0,0,-1]
+face_down_backward=[-1,0,0,0,1,0,0,0,-1]
+face_down=face_down_forward
 start_pos=(face_down,[0,0,0.6])
 drop_pos=(face_down,[0.7,0,0.6])
 
@@ -101,12 +103,10 @@ class StateMachineController(ReflexController):
 			if not self.at_destination(current_pos,raise_pos):
 				self.go_to(controller,current_pos,raise_pos)
 			else:
-				if self.ball_in_hand(current_pos):
-					self.set_state('move_to_drop_position')
-				else:
-					self.set_state('idle')
-
+				self.set_state('move_to_drop_position')
 		elif self.state == 'move_to_drop_position':
+			if not self.ball_in_hand(current_pos):
+				self.set_state('idle');
 			if self.at_destination(current_pos,drop_pos):
 				self.set_state('drop')
 			else:
@@ -134,19 +134,21 @@ class StateMachineController(ReflexController):
 				self.current_target_pos=p
 				print 'higher is easier!'
 				best_p=p
-			elif p[2]>best_p[2]-0.03 and vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
+			elif p[2]>best_p[2]-0.04 and vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
 				self.current_target=i
 				self.current_target_pos=p		
 				best_p=p
-		d_x=0
+		d_x=-0.02
+		face_down=face_down_forward
 		if best_p[0]>0.15:
-			d_x=-0.05
+			d_x=-0.02
+			face_down=face_down_backward
 			print 'too close to the wall!!'
 		elif best_p[0]<-0.15:
-			d_x=0.05
+			d_x=0.02
 			print 'too close to the wall!!'
 		#here is hardcoding the best relative position for grasp the ball
-		target=(face_down,vectorops.add(best_p,[d_x,0,0.16]))
+		target=(face_down,vectorops.add(best_p,[d_x,0,0.14]))
 		print self.current_target	
 		print 'find target at:',self.current_target_pos	
 		return target
@@ -174,7 +176,7 @@ class StateMachineController(ReflexController):
 			return False
 	def target_is_not_moving(self):
 
-		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.015:
+		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.04:
 			return True
 		else:
 			print 'old position',self.current_target_pos
