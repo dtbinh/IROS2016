@@ -56,7 +56,7 @@ class StateMachineController(ReflexController):
 		ReflexController.verbose = False
 		ReflexController.__call__(self,controller)
 		time=sim.getTime();
-		current_pos=get_moving_base_xform(self.sim.world.robot(0))
+		current_pos=get_moving_base_xform(self.robot)
 		#finger contact
 		if self.verbose: 
 			try:
