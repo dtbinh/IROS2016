@@ -5,15 +5,17 @@ from reflex_control import *
 # import time
 c_hand=0.3
 o_hand=0.43
+r_hand=0.8
 pre_hand=0.75
 close_hand=[c_hand,c_hand,c_hand,pre_hand]
 open_hand=[o_hand,o_hand,o_hand,pre_hand]
-move_speed=0.8;
+release_hand=[r_hand,r_hand,r_hand,pre_hand]
+move_speed=0.9;
 face_down_forward=[1,0,0,0,-1,0,0,0,-1]
 face_down_backward=[-1,0,0,0,1,0,0,0,-1]
 face_down=face_down_forward
-start_pos=(face_down,[0,0,0.6])
-drop_pos=(face_down,[0.7,0,0.6])
+start_pos=(face_down,[0.0,0,0.6])
+drop_pos=(face_down,[0.5,0,0.6])
 
 
 class StateMachineController(ReflexController):
@@ -71,14 +73,19 @@ class StateMachineController(ReflexController):
 			print "State:",self.state
 			self.print_flag=0
 		if self.state == 'idle':
-			self.go_to(controller,current_pos,start_pos)
-			self.open_hand()
-			if time>self.last_state_end_t+1 and len(self.waiting_list)>0:
-				self.set_state('find_target')
-			elif len(self.waiting_list)<1:
-				print "Finished! Total score is",self.score,"/",self.num_ball
-                                print time
-                                exit()
+			if not self.at_destination(current_pos,start_pos):
+				self.go_to(controller,current_pos,start_pos)
+				self.open_hand()
+			else:
+				print '-----------------------------------------'
+				self.check_target()
+				if len(self.waiting_list)>0:
+					print "Score:",self.score,"/",self.num_ball
+					self.set_state('find_target')
+				elif len(self.waiting_list)<1:
+					print "Finished! Total score is",self.score,"/",self.num_ball
+	                                print time
+	                                exit()
 		elif self.state=='find_target':
 			self.target=self.find_target();
 			self.set_state('pick_target')
@@ -106,17 +113,19 @@ class StateMachineController(ReflexController):
 				self.set_state('move_to_drop_position')
 		elif self.state == 'move_to_drop_position':
 			if not self.ball_in_hand(current_pos):
-				self.set_state('idle');
+				if current_pos[1][0]<0.25:
+					print current_pos[1][0]
+					self.set_state('idle')
 			if self.at_destination(current_pos,drop_pos):
 				self.set_state('drop')
 			else:
 				self.go_to(controller,current_pos,drop_pos)
 		elif self.state=='drop':
-			if time<self.last_state_end_t+0.1 :
-				self.open_hand()
+			if time<self.last_state_end_t+0.4 :
+				self.open_hand(release_hand)
 			else:
 				self.set_state('idle')
-				self.check_target()
+				
 	def at_destination(self,current_pos,goal_pos):
 		if vectorops.distance(current_pos[1],goal_pos[1])<0.05:
 			return True
@@ -128,11 +137,11 @@ class StateMachineController(ReflexController):
 		self.current_target_pos=best_p
 		for i in self.waiting_list:
 			p=self.sim.world.rigidObject(i).getTransform()[1]
-			print i,p[2],vectorops.distance([0,0],[p[0],p[1]])
+			# print i,p[2],vectorops.distance([0,0],[p[0],p[1]])
 			if p[2]>best_p[2]+0.05:
 				self.current_target=i
 				self.current_target_pos=p
-				print 'higher is easier!'
+				# print 'higher is easier!'
 				best_p=p
 			elif p[2]>best_p[2]-0.04 and vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
 				self.current_target=i
@@ -143,34 +152,36 @@ class StateMachineController(ReflexController):
 		if best_p[0]>0.15:
 			d_x=-0.02
 			face_down=face_down_backward
-			print 'too close to the wall!!'
+			# print 'too close to the wall!!'
 		elif best_p[0]<-0.15:
 			d_x=0.02
-			print 'too close to the wall!!'
+			# print 'too close to the wall!!'
 		#here is hardcoding the best relative position for grasp the ball
 		target=(face_down,vectorops.add(best_p,[d_x,0,0.14]))
-		print self.current_target	
-		print 'find target at:',self.current_target_pos	
+		# print self.current_target	
+		# print 'find target at:',self.current_target_pos	
 		return target
 	def go_to(self,controller,current_pos,goal_pos):
 		t=vectorops.distance(current_pos[1],goal_pos[1])/move_speed
 		send_moving_base_xform_linear(controller,goal_pos[0],goal_pos[1],t);
 	def close_hand(self):
 		self.hand.setCommand(close_hand)
-	def open_hand(self):
-		self.hand.setCommand(open_hand)
+	def open_hand(self,hand_config=open_hand):
+		self.hand.setCommand(hand_config)
 	def check_target(self):
 		p=self.sim.world.rigidObject(self.current_target).getTransform()[1]
 		if p[0]>0.25 or p[0]<-0.25 or p[1]>0.25 or p[1]<-0.25:
 			self.waiting_list.remove(self.current_target)
 		if p[0]<0.95 and p[0]>0.45 and p[1]<0.25 and p[1]>-0.25:
 			self.score=self.score+1
+		#print self.waiting_list
+		print len(self.waiting_list)," balls remaining"
 	def set_state(self,state_name):
 		self.state=state_name
 		self.last_state_end_t=self.sim.getTime()
 		self.print_flag=1
 	def ball_in_hand(self,current_pos):
-		if self.sim.world.rigidObject(self.current_target).getTransform()[1][2]>0.4:
+		if vectorops.distance(current_pos[1],self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.2:
 			return True
 		else:
 			return False
@@ -179,9 +190,6 @@ class StateMachineController(ReflexController):
 		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.04:
 			return True
 		else:
-			print 'old position',self.current_target_pos
-			print 'current position',self.sim.world.rigidObject(self.current_target).getTransform()[1]
-			print 'position for 0',self.sim.world.rigidObject(0).getTransform()[1]
 			return False
 
 
