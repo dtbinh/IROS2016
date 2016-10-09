@@ -1,10 +1,11 @@
 from klampt import *
-from klampt.math import vectorops,so3,se3
+from klampt.math import vectorops,so3,se3,so2
 from moving_base_control import *
 from reflex_control import *
 # import time
+import math
 c_hand=0.3
-o_hand=0.43
+o_hand=0.53
 r_hand=0.8
 pre_hand=0.75
 close_hand=[c_hand,c_hand,c_hand,pre_hand]
@@ -15,6 +16,7 @@ face_down_forward=[1,0,0,0,-1,0,0,0,-1]
 face_down_backward=[-1,0,0,0,1,0,0,0,-1]
 face_down=face_down_forward
 start_pos=(face_down,[0.0,0,0.6])
+ready_pos=(face_down,[0.0,0,0.25])
 drop_pos=(face_down,[0.5,0,0.6])
 
 
@@ -36,7 +38,7 @@ class StateMachineController(ReflexController):
 		self.waiting_list=range(self.num_ball)
 		self.score=0
 		self.print_flag=0
-
+		self.tooclose=False;
 
 
 		#get references to the robot's sensors (not properly functioning in 0.6.x)
@@ -88,10 +90,14 @@ class StateMachineController(ReflexController):
 	                                exit()
 		elif self.state=='find_target':
 			self.target=self.find_target();
+			self.go_to_fast(controller,current_pos,(self.target[0],start_pos[1]))
 			self.set_state('pick_target')
 		elif self.state == 'pick_target':	
 			if time<self.last_state_end_t+1:
-				self.go_to(controller,current_pos,(self.target[0],vectorops.add(self.target[1],[0,0,0.2])))
+				if self.tooclose:
+					self.go_to(controller,current_pos,(self.target[0],vectorops.add(start_pos[1],[0,0,-.35])))
+				else:
+					self.go_to(controller,current_pos,(self.target[0],vectorops.add(self.target[1],[0,0,0.2])))
 				if self.target_is_not_moving():
 					pass
 				else:
@@ -149,21 +155,42 @@ class StateMachineController(ReflexController):
 				best_p=p
 		d_x=-0.02
 		face_down=face_down_forward
+		self.tooclose = False;
 		if best_p[0]>0.15:
 			d_x=-0.02
 			face_down=face_down_backward
-			# print 'too close to the wall!!'
+			self.tooclose = True;
+			print 'too close to the wall!!'
 		elif best_p[0]<-0.15:
 			d_x=0.02
-			# print 'too close to the wall!!'
+			self.tooclose = True;
+			print 'too close to the wall!!'
 		#here is hardcoding the best relative position for grasp the ball
+
 		target=(face_down,vectorops.add(best_p,[d_x,0,0.14]))
+		if self.tooclose:
+			balllocation = best_p
+			handballdiff = vectorops.sub(ready_pos[1],best_p)
+			axis = vectorops.unit(vectorops.cross(handballdiff,ready_pos[1]))
+			angleforaxis = -1*math.acos(vectorops.dot(ready_pos[1],handballdiff)/vectorops.norm(ready_pos[1])/vectorops.norm(handballdiff))+math.pi
+			angleforaxis = so2.normalize(angleforaxis)
+			#if angleforaxis>math.pi:
+			#	angleforaxis=angleforaxis-2*math.pi
+			adjR = so3.rotation(axis, angleforaxis)
+			print balllocation
+			print vectorops.norm(ready_pos[1]),vectorops.norm(handballdiff),angleforaxis
+			target=(adjR,vectorops.add(best_p,[d_x,0,0.14]))
+			
+
 		# print self.current_target	
 		# print 'find target at:',self.current_target_pos	
 		return target
 	def go_to(self,controller,current_pos,goal_pos):
 		t=vectorops.distance(current_pos[1],goal_pos[1])/move_speed
 		send_moving_base_xform_linear(controller,goal_pos[0],goal_pos[1],t);
+	def go_to_fast(self,controller,current_pos,goal_pos):
+		send_moving_base_xform_linear(controller,goal_pos[0],goal_pos[1],.1);
+		print "GO TO FAST"
 	def close_hand(self):
 		self.hand.setCommand(close_hand)
 	def open_hand(self,hand_config=open_hand):
