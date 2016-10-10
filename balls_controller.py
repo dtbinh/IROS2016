@@ -127,7 +127,7 @@ class StateMachineController(ReflexController):
 			else:
 				self.go_to(controller,current_pos,(current_pos[0],drop_pos[1]))
 		elif self.state=='drop':
-			if time<self.last_state_end_t+0.4 :
+			if time<self.last_state_end_t+0.5 :
 				self.open_hand(release_hand)
 			else:
 				self.set_state('idle')
