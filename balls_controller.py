@@ -12,8 +12,8 @@ close_hand=[c_hand,c_hand,c_hand,pre_hand]
 open_hand=[o_hand,o_hand,o_hand,pre_hand]
 release_hand=[r_hand,r_hand,r_hand,pre_hand]
 move_speed=0.9;
-face_down_forward=[1,0,0,0,-1,0,0,0,-1]
-face_down_backward=[-1,0,0,0,1,0,0,0,-1]
+face_down_forward=[1,0,0,0,1,0,0,0,1]
+face_down_backward=[-1,0,0,0,-1,0,0,0,1]
 face_down=face_down_forward
 start_pos=(face_down,[0.0,0,0.6])
 ready_pos=(face_down,[0.0,0,0.25])
@@ -125,7 +125,7 @@ class StateMachineController(ReflexController):
 			if self.at_destination(current_pos,drop_pos):
 				self.set_state('drop')
 			else:
-				self.go_to(controller,current_pos,drop_pos)
+				self.go_to(controller,current_pos,(current_pos[0],drop_pos[1]))
 		elif self.state=='drop':
 			if time<self.last_state_end_t+0.4 :
 				self.open_hand(release_hand)
@@ -172,14 +172,14 @@ class StateMachineController(ReflexController):
 			balllocation = best_p
 			handballdiff = vectorops.sub(ready_pos[1],best_p)
 			axis = vectorops.unit(vectorops.cross(handballdiff,ready_pos[1]))
-			angleforaxis = -1*math.acos(vectorops.dot(ready_pos[1],handballdiff)/vectorops.norm(ready_pos[1])/vectorops.norm(handballdiff))+math.pi
+			angleforaxis = -1*math.acos(vectorops.dot(ready_pos[1],handballdiff)/vectorops.norm(ready_pos[1])/vectorops.norm(handballdiff))
 			angleforaxis = so2.normalize(angleforaxis)
 			#if angleforaxis>math.pi:
 			#	angleforaxis=angleforaxis-2*math.pi
 			adjR = so3.rotation(axis, angleforaxis)
 			print balllocation
 			print vectorops.norm(ready_pos[1]),vectorops.norm(handballdiff),angleforaxis
-			target=(adjR,vectorops.add(best_p,vectorops.div(vectorops.unit(handballdiff),7)))
+			target=(adjR,vectorops.add(best_p,vectorops.div(vectorops.unit(handballdiff),10)))
 			
 
 		# print self.current_target	
@@ -208,7 +208,7 @@ class StateMachineController(ReflexController):
 		self.last_state_end_t=self.sim.getTime()
 		self.print_flag=1
 	def ball_in_hand(self,current_pos):
-		if vectorops.distance(current_pos[1],self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.2:
+		if vectorops.distance(current_pos[1],self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.3:
 			return True
 		else:
 			return False
