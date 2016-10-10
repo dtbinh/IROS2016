@@ -179,7 +179,7 @@ class StateMachineController(ReflexController):
 			adjR = so3.rotation(axis, angleforaxis)
 			print balllocation
 			print vectorops.norm(ready_pos[1]),vectorops.norm(handballdiff),angleforaxis
-			target=(adjR,vectorops.add(best_p,[d_x,0,0.14]))
+			target=(adjR,vectorops.add(best_p,vectorops.div(vectorops.unit(handballdiff),7)))
 			
 
 		# print self.current_target	
