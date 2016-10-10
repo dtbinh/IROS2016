@@ -18,6 +18,7 @@ face_down=face_down_forward
 start_pos=(face_down,[0.0,0,0.6])
 ready_pos=(face_down,[0.0,0,0.25])
 drop_pos=(face_down,[0.5,0,0.6])
+default_radius=0.1
 
 
 class StateMachineController(ReflexController):
@@ -39,6 +40,7 @@ class StateMachineController(ReflexController):
 		self.score=0
 		self.print_flag=0
 		self.tooclose=False;
+		self.current_radius=default_radius
 
 
 		#get references to the robot's sensors (not properly functioning in 0.6.x)
@@ -132,6 +134,7 @@ class StateMachineController(ReflexController):
 			if time<self.last_state_end_t+0.5 :
 				self.open_hand(release_hand)
 			else:
+				self.tooclose=False
 				self.set_state('idle')
 				
 	def at_destination(self,current_pos,goal_pos):
@@ -143,6 +146,8 @@ class StateMachineController(ReflexController):
 		self.current_target=self.waiting_list[0]
 		best_p=self.sim.world.rigidObject(self.current_target).getTransform()[1]
 		self.current_target_pos=best_p
+		bb = self.sim.world.rigidObject(self.current_target).geometry().getBB()
+		self.current_radius=math.fabs(bb[1][0]-bb[0][0])
 		for i in self.waiting_list:
 			p=self.sim.world.rigidObject(i).getTransform()[1]
 			# print i,p[2],vectorops.distance([0,0],[p[0],p[1]])
@@ -151,10 +156,14 @@ class StateMachineController(ReflexController):
 				self.current_target_pos=p
 				# print 'higher is easier!'
 				best_p=p
+				bb = self.sim.world.rigidObject(i).geometry().getBB()
+				self.current_radius=math.fabs(bb[1][0]-bb[0][0])
 			elif p[2]>best_p[2]-0.04 and vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
 				self.current_target=i
 				self.current_target_pos=p		
 				best_p=p
+				bb = self.sim.world.rigidObject(i).geometry().getBB()
+				self.current_radius=math.fabs(bb[1][0]-bb[0][0])
 		d_x=-0.02
 		face_down=face_down_forward
 		self.tooclose = False;
@@ -182,6 +191,7 @@ class StateMachineController(ReflexController):
 			print balllocation
 			print vectorops.norm(ready_pos[1]),vectorops.norm(handballdiff),angleforaxis
 			target=(adjR,vectorops.add(best_p,vectorops.div(vectorops.unit(handballdiff),10)))
+			self.open_hand()
 			
 
 		# print self.current_target	
@@ -196,9 +206,23 @@ class StateMachineController(ReflexController):
 	def go_to_vertical(self,controller,current_pos,goal_translation):
 		send_moving_base_xform_linear(controller,face_down,vectorops.add(goal_translation,[0,0,0.14]),.1);
 	def close_hand(self):
-		self.hand.setCommand(close_hand)
+		adj_close_hand=vectorops.mul(close_hand,2.5*self.current_radius)
+		adj_close_hand=vectorops.add(adj_close_hand,[c_hand*3/4,c_hand*3/4,c_hand*3/4,0])
+		adj_close_hand[3]=pre_hand
+		print "close:", adj_close_hand
+		self.hand.setCommand(adj_close_hand)
 	def open_hand(self,hand_config=open_hand):
-		self.hand.setCommand(hand_config)
+		adj_hand_config=vectorops.mul(hand_config,2.5*self.current_radius)
+		adj_hand_config=vectorops.add(adj_hand_config,[o_hand*3/4,o_hand*3/4,o_hand*3/4,0])
+		if self.tooclose and self.current_radius<0.09:
+			adj_hand_config=vectorops.add(adj_hand_config,[o_hand*1/4,o_hand*1/4,o_hand*1/4,0])
+		adj_hand_config[3]=pre_hand
+		if hand_config[0]==r_hand:
+			print "drop:", hand_config
+			self.hand.setCommand(hand_config)
+		else:
+			print "open:", adj_hand_config
+			self.hand.setCommand(adj_hand_config)
 	def check_target(self):
 		p=self.sim.world.rigidObject(self.current_target).getTransform()[1]
 		if p[0]>0.25 or p[0]<-0.25 or p[1]>0.25 or p[1]<-0.25:
@@ -217,8 +241,7 @@ class StateMachineController(ReflexController):
 		else:
 			return False
 	def target_is_not_moving(self):
-
-		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.04:
+		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.03*10*self.current_radius+0.01:
 			return True
 		else:
 			return False
