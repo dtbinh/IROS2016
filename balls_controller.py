@@ -105,7 +105,9 @@ class StateMachineController(ReflexController):
 					print 'target is moving!!!'
 			elif time<self.last_state_end_t+1.5:
 				self.go_to(controller,current_pos,self.target)
-			elif time<self.last_state_end_t+2:
+			elif time<self.last_state_end_t+1.75:
+				self.go_to_vertical(controller,current_pos,self.current_target_pos)
+			elif time<self.last_state_end_t+2.25:
 				#this is needed to stop at the current position in case there's some residual velocity
 				controller.setPIDCommand(controller.getCommandedConfig(),[0.0]*len(controller.getCommandedConfig()))
 				self.close_hand()
@@ -191,6 +193,8 @@ class StateMachineController(ReflexController):
 	def go_to_fast(self,controller,current_pos,goal_pos):
 		send_moving_base_xform_linear(controller,goal_pos[0],goal_pos[1],.1);
 		print "GO TO FAST"
+	def go_to_vertical(self,controller,current_pos,goal_translation):
+		send_moving_base_xform_linear(controller,face_down,vectorops.add(goal_translation,[0,0,0.14]),.1);
 	def close_hand(self):
 		self.hand.setCommand(close_hand)
 	def open_hand(self,hand_config=open_hand):
