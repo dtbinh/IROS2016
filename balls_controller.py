@@ -5,7 +5,7 @@ from reflex_control import *
 # import time
 import math
 c_hand=0.3
-o_hand=0.53
+o_hand=0.43
 r_hand=0.8
 pre_hand=0.75
 close_hand=[c_hand,c_hand,c_hand,pre_hand]
@@ -103,11 +103,11 @@ class StateMachineController(ReflexController):
 				else:
 					self.set_state('find_target')
 					print 'target is moving!!!'
-			elif time<self.last_state_end_t+1.5:
+			elif time<self.last_state_end_t+1.25:
 				self.go_to(controller,current_pos,self.target)
-			elif time<self.last_state_end_t+1.75:
+			elif time<self.last_state_end_t+1.5:
 				self.go_to_vertical(controller,current_pos,self.current_target_pos)
-			elif time<self.last_state_end_t+2.25:
+			elif time<self.last_state_end_t+2.0:
 				#this is needed to stop at the current position in case there's some residual velocity
 				controller.setPIDCommand(controller.getCommandedConfig(),[0.0]*len(controller.getCommandedConfig()))
 				self.close_hand()
