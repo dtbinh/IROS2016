@@ -12,12 +12,16 @@ close_hand=[c_hand,c_hand,c_hand,pre_hand]
 open_hand=[o_hand,o_hand,o_hand,pre_hand]
 release_hand=[r_hand,r_hand,r_hand,pre_hand]
 move_speed=0.9;
-face_down_forward=[0,1,0,-1,0,0,0,0,1]
-face_down_backward=[0,-1,0,1,0,0,0,0,1]
+face_down_forward=[1,0,0,0,1,0,0,0,1]
+face_down_backward=[-1,0,0,0,-1,0,0,0,1]
 face_down=face_down_forward
 start_pos=(face_down,[0.0,0,0.6])
-ready_pos=(face_down,[0.0,0,0.25])
+start_pos_left=(face_down,[-0.1,0,0.6])
+start_pos_right=(face_down,[0.125,0,0.6])
+ready_pos=(face_down,[0.0,0,0.45])
 drop_pos=(face_down,[0.5,0,0.6])
+boxleft=0
+boxright=1
 
 
 class StateMachineController(ReflexController):
@@ -39,6 +43,7 @@ class StateMachineController(ReflexController):
 		self.score=0
 		self.print_flag=0
 		self.tooclose=False;
+		self.boxside = boxleft
 
 
 		#get references to the robot's sensors (not properly functioning in 0.6.x)
@@ -92,10 +97,16 @@ class StateMachineController(ReflexController):
 			self.target=self.find_target();
 			self.go_to_fast(controller,current_pos,(self.target[0],start_pos[1]))
 			self.set_state('pick_target')
-		elif self.state == 'pick_target':	
-			if time<self.last_state_end_t+1:
+		elif self.state == 'pick_target':
+			time_for_first_rotation=1
+			if self.tooclose:
+				time_for_first_rotation=1.1	
+			if time<self.last_state_end_t+time_for_first_rotation:
 				if self.tooclose:
-					self.go_to(controller,current_pos,(self.target[0],vectorops.add(start_pos[1],[0,0,-.35])))
+					if self.boxside==boxleft:
+						self.go_to(controller,current_pos,(self.target[0],vectorops.add(start_pos_left[1],[0,0,-.15])))
+					elif self.boxside==boxright:
+						self.go_to(controller,current_pos,(self.target[0],vectorops.add(start_pos_right[1],[0,0,-.15])))
 				else:
 					self.go_to(controller,current_pos,(self.target[0],vectorops.add(self.target[1],[0,0,0.2])))
 				if self.target_is_not_moving():
@@ -103,11 +114,11 @@ class StateMachineController(ReflexController):
 				else:
 					self.set_state('find_target')
 					print 'target is moving!!!'
-			elif time<self.last_state_end_t+1.25:
+			elif time<self.last_state_end_t+time_for_first_rotation+0.25:
 				self.go_to(controller,current_pos,self.target)
-			elif time<self.last_state_end_t+1.5:
+			elif time<self.last_state_end_t+time_for_first_rotation+0.5:
 				self.go_to_vertical(controller,current_pos,self.current_target_pos)
-			elif time<self.last_state_end_t+2.0:
+			elif time<self.last_state_end_t+time_for_first_rotation+1:
 				#this is needed to stop at the current position in case there's some residual velocity
 				controller.setPIDCommand(controller.getCommandedConfig(),[0.0]*len(controller.getCommandedConfig()))
 				self.close_hand()
@@ -165,24 +176,34 @@ class StateMachineController(ReflexController):
 			print 'too close to the wall!!'
 		elif best_p[1]<-0.15:
 			d_y=0.02
+			print best_p
 			self.tooclose = True;
 			print 'too close to the wall!!'
 		#here is hardcoding the best relative position for grasp the ball
 
 		target=(face_down,vectorops.add(best_p,[0,d_y,0.14]))
 		if self.tooclose:
+			if best_p[0]<0:
+				self.boxside=boxleft
+				aready_pos=start_pos_left
+			else:
+				self.boxside=boxright
+				aready_pos=start_pos_right
+			aready_pos[1][0]=best_p[0]
 			balllocation = best_p
-			handballdiff = vectorops.sub(ready_pos[1],best_p)
-			axis = vectorops.unit(vectorops.cross(handballdiff,ready_pos[1]))
-			angleforaxis = -1*math.acos(vectorops.dot(ready_pos[1],handballdiff)/vectorops.norm(ready_pos[1])/vectorops.norm(handballdiff))
+			handballdiff = vectorops.sub(aready_pos[1],best_p)
+			axis = vectorops.unit(vectorops.cross(handballdiff,aready_pos[1]))
+			axis = (1,0,0)
+			if best_p[1]>0:
+				axis=(-1,0,0)
+			angleforaxis = -1*math.acos(vectorops.dot(aready_pos[1],handballdiff)/vectorops.norm(aready_pos[1])/vectorops.norm(handballdiff))
 			angleforaxis = so2.normalize(angleforaxis)
 			#if angleforaxis>math.pi:
 			#	angleforaxis=angleforaxis-2*math.pi
 			adjR = so3.rotation(axis, angleforaxis)
 			print balllocation
-			print vectorops.norm(ready_pos[1]),vectorops.norm(handballdiff),angleforaxis
+			print vectorops.norm(aready_pos[1]),vectorops.norm(handballdiff),angleforaxis
 			target=(adjR,vectorops.add(best_p,vectorops.div(vectorops.unit(handballdiff),5)))
-			
 
 		# print self.current_target	
 		# print 'find target at:',self.current_target_pos	
