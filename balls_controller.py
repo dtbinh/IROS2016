@@ -4,8 +4,9 @@ from moving_base_control import *
 from reflex_control import *
 # import time
 import math
-c_hand=0.3
-o_hand=0.43
+import random
+c_hand=0.30
+o_hand=0.40
 r_hand=0.8
 pre_hand=0.75
 close_hand=[c_hand,c_hand,c_hand,pre_hand]
@@ -45,6 +46,7 @@ class StateMachineController(ReflexController):
 		self.tooclose=False;
 		self.boxside = boxleft
 		self.failedpickup = 9999
+		self.twist = False;
 
 
 		#get references to the robot's sensors (not properly functioning in 0.6.x)
@@ -118,7 +120,11 @@ class StateMachineController(ReflexController):
 			elif time<self.last_state_end_t+time_for_first_rotation+0.25:
 				self.go_to(controller,current_pos,self.target)
 			elif time<self.last_state_end_t+time_for_first_rotation+0.5:
-				self.go_to_vertical(controller,current_pos,self.current_target_pos)
+				if not self.twist:
+					self.go_to_vertical(controller,current_pos,self.current_target_pos)
+				else:
+					print "Twisting..."
+					self.go_to_twist(controller,current_pos,self.current_target_pos)
 			elif time<self.last_state_end_t+time_for_first_rotation+1:
 				#this is needed to stop at the current position in case there's some residual velocity
 				controller.setPIDCommand(controller.getCommandedConfig(),[0.0]*len(controller.getCommandedConfig()))
@@ -135,10 +141,13 @@ class StateMachineController(ReflexController):
 			if not self.ball_in_hand(current_pos):
 				if current_pos[1][0]<0.25:
 					print current_pos[1][0]
+					if not self.failedpickup==9999:
+						self.twist=True;
 					self.failedpickup=self.current_target
 					self.set_state('idle')
 			else:
 				self.failedpickup=9999
+				self.twist=False
 			if self.at_destination(current_pos,drop_pos):
 				self.set_state('drop')
 			else:
@@ -221,6 +230,9 @@ class StateMachineController(ReflexController):
 		print "GO TO FAST"
 	def go_to_vertical(self,controller,current_pos,goal_translation):
 		send_moving_base_xform_linear(controller,face_down,vectorops.add(goal_translation,[0,0,0.14]),.1);
+	def go_to_twist(self,controller,current_pos,goal_translation):
+		i=random.choice([1,-1])
+		send_moving_base_xform_linear(controller,[0,1,0,-1,0,0,0,0,1],vectorops.add(goal_translation,[0,0,0.14]),.1);
 	def close_hand(self):
 		self.hand.setCommand(close_hand)
 	def open_hand(self,hand_config=open_hand):
