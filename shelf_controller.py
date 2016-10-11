@@ -76,7 +76,7 @@ class StateMachineController(ReflexController):
 			else:
 				print '-----------------------------------------'
 				self.check_target()
-				print self.num_pick
+				# print self.num_pick
 				if len(self.waiting_list)>0:
 					print "Score:",self.score,"/",self.num_target
 					self.set_state('find_target')
@@ -144,20 +144,20 @@ class StateMachineController(ReflexController):
 		self.target[1][1]=min(y_max,self.target[1][1])
 		self.target[1][2]=min(max(z_min,self.target[1][2]),z_max)
 		self.num_pick[self.current_target]+=1
-		print p[1]
+		# print p[1]
 	def check_target(self):
 		remove_list=[]
 		for i in range(len(self.waiting_list)):
 			p=self.sim.world.rigidObject(self.waiting_list[i]).getTransform()[1]
-			if p[2]<0.6:
+			if p[2]<0.48:
 				remove_list.append(self.waiting_list[i])
 			if p[0]<0.25 and p[0]>-0.25 and p[1]<0.25 and p[1]>-0.25:
 				self.score=self.score+1
-		print 'waiting list',self.waiting_list
-		print 'remove list',remove_list
+		# print 'waiting list',self.waiting_list
+		# print 'remove list',remove_list
 		for i in remove_list:
 			self.waiting_list.remove(i)
-		print 'waiting list',self.waiting_list 
+		# print 'waiting list',self.waiting_list 
 	def go_to(self,controller,current_pos,goal_pos):
 			t=vectorops.distance(current_pos[1],goal_pos[1])/move_speed
 			send_moving_base_xform_linear(controller,goal_pos[0],goal_pos[1],t);

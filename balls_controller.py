@@ -12,8 +12,8 @@ close_hand=[c_hand,c_hand,c_hand,pre_hand]
 open_hand=[o_hand,o_hand,o_hand,pre_hand]
 release_hand=[r_hand,r_hand,r_hand,pre_hand]
 move_speed=0.9;
-face_down_forward=[1,0,0,0,1,0,0,0,1]
-face_down_backward=[-1,0,0,0,-1,0,0,0,1]
+face_down_forward=[0,1,0,-1,0,0,0,0,1]
+face_down_backward=[0,-1,0,1,0,0,0,0,1]
 face_down=face_down_forward
 start_pos=(face_down,[0.0,0,0.6])
 ready_pos=(face_down,[0.0,0,0.25])
@@ -155,21 +155,21 @@ class StateMachineController(ReflexController):
 				self.current_target=i
 				self.current_target_pos=p		
 				best_p=p
-		d_x=-0.02
+		d_y=-0.02
 		face_down=face_down_forward
 		self.tooclose = False;
-		if best_p[0]>0.15:
-			d_x=-0.02
+		if best_p[1]>0.15:
+			d_y=-0.02
 			face_down=face_down_backward
 			self.tooclose = True;
 			print 'too close to the wall!!'
-		elif best_p[0]<-0.15:
-			d_x=0.02
+		elif best_p[1]<-0.15:
+			d_y=0.02
 			self.tooclose = True;
 			print 'too close to the wall!!'
 		#here is hardcoding the best relative position for grasp the ball
 
-		target=(face_down,vectorops.add(best_p,[d_x,0,0.14]))
+		target=(face_down,vectorops.add(best_p,[0,d_y,0.14]))
 		if self.tooclose:
 			balllocation = best_p
 			handballdiff = vectorops.sub(ready_pos[1],best_p)
@@ -181,7 +181,7 @@ class StateMachineController(ReflexController):
 			adjR = so3.rotation(axis, angleforaxis)
 			print balllocation
 			print vectorops.norm(ready_pos[1]),vectorops.norm(handballdiff),angleforaxis
-			target=(adjR,vectorops.add(best_p,vectorops.div(vectorops.unit(handballdiff),10)))
+			target=(adjR,vectorops.add(best_p,vectorops.div(vectorops.unit(handballdiff),5)))
 			
 
 		# print self.current_target	
@@ -218,7 +218,7 @@ class StateMachineController(ReflexController):
 			return False
 	def target_is_not_moving(self):
 
-		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.04:
+		if vectorops.distance(self.current_target_pos,self.sim.world.rigidObject(self.current_target).getTransform()[1])<0.03:
 			return True
 		else:
 			return False
