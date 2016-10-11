@@ -45,7 +45,7 @@ class StateMachineController(ReflexController):
 		self.print_flag=0
 		self.tooclose=False;
 		self.boxside = boxleft
-		self.failedpickup = 9999
+		self.failedpickup = []
 		self.twist = False;
 
 
@@ -124,7 +124,7 @@ class StateMachineController(ReflexController):
 					self.go_to_vertical(controller,current_pos,self.current_target_pos)
 				else:
 					print "Twisting..."
-					self.go_to_twist(controller,current_pos,self.current_target_pos)
+					self.go_to_twist(controller,current_pos,vectorops.add(self.current_target_pos,[0,0,-.1]))
 			elif time<self.last_state_end_t+time_for_first_rotation+1:
 				#this is needed to stop at the current position in case there's some residual velocity
 				controller.setPIDCommand(controller.getCommandedConfig(),[0.0]*len(controller.getCommandedConfig()))
@@ -141,13 +141,14 @@ class StateMachineController(ReflexController):
 			if not self.ball_in_hand(current_pos):
 				if current_pos[1][0]<0.25:
 					print current_pos[1][0]
-					if not self.failedpickup==9999:
+					if self.failedpickup.count>2:
 						self.twist=True;
-					self.failedpickup=self.current_target
+					self.failedpickup.append(self.current_target)
 					self.set_state('idle')
 			else:
-				self.failedpickup=9999
+				del self.failedpickup[:]
 				self.twist=False
+			print "pickup:", self.failedpickup
 			if self.at_destination(current_pos,drop_pos):
 				self.set_state('drop')
 			else:
@@ -170,13 +171,17 @@ class StateMachineController(ReflexController):
 		for i in self.waiting_list:
 			p=self.sim.world.rigidObject(i).getTransform()[1]
 			# print i,p[2],vectorops.distance([0,0],[p[0],p[1]])
-			if not i==self.failedpickup:
+			if i not in self.failedpickup:
 				if p[2]>best_p[2]+0.05:
 					self.current_target=i
 					self.current_target_pos=p
 					# print 'higher is easier!'
 					best_p=p
 				elif p[2]>best_p[2]-0.04 and vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
+					self.current_target=i
+					self.current_target_pos=p		
+					best_p=p
+				elif self.current_target in self.failedpickup:
 					self.current_target=i
 					self.current_target_pos=p		
 					best_p=p
@@ -232,7 +237,7 @@ class StateMachineController(ReflexController):
 		send_moving_base_xform_linear(controller,face_down,vectorops.add(goal_translation,[0,0,0.14]),.1);
 	def go_to_twist(self,controller,current_pos,goal_translation):
 		i=random.choice([1,-1])
-		send_moving_base_xform_linear(controller,[0,1,0,-1,0,0,0,0,1],vectorops.add(goal_translation,[0,0,0.14]),.1);
+		send_moving_base_xform_linear(controller,[0,i*-1,0,i*1,0,0,0,0,1],vectorops.add(goal_translation,[0,0,0.14]),.1);
 	def close_hand(self):
 		self.hand.setCommand(close_hand)
 	def open_hand(self,hand_config=open_hand):
