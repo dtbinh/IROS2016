@@ -44,6 +44,7 @@ class StateMachineController(ReflexController):
 		self.print_flag=0
 		self.tooclose=False;
 		self.boxside = boxleft
+		self.failedpickup = 9999
 
 
 		#get references to the robot's sensors (not properly functioning in 0.6.x)
@@ -134,7 +135,10 @@ class StateMachineController(ReflexController):
 			if not self.ball_in_hand(current_pos):
 				if current_pos[1][0]<0.25:
 					print current_pos[1][0]
+					self.failedpickup=self.current_target
 					self.set_state('idle')
+			else:
+				self.failedpickup=9999
 			if self.at_destination(current_pos,drop_pos):
 				self.set_state('drop')
 			else:
@@ -157,15 +161,16 @@ class StateMachineController(ReflexController):
 		for i in self.waiting_list:
 			p=self.sim.world.rigidObject(i).getTransform()[1]
 			# print i,p[2],vectorops.distance([0,0],[p[0],p[1]])
-			if p[2]>best_p[2]+0.05:
-				self.current_target=i
-				self.current_target_pos=p
-				# print 'higher is easier!'
-				best_p=p
-			elif p[2]>best_p[2]-0.04 and vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
-				self.current_target=i
-				self.current_target_pos=p		
-				best_p=p
+			if not i==self.failedpickup:
+				if p[2]>best_p[2]+0.05:
+					self.current_target=i
+					self.current_target_pos=p
+					# print 'higher is easier!'
+					best_p=p
+				elif p[2]>best_p[2]-0.04 and vectorops.distance([0,0],[p[0],p[1]])<vectorops.distance([0,0],[best_p[0],best_p[1]]):
+					self.current_target=i
+					self.current_target_pos=p		
+					best_p=p
 		d_y=-0.02
 		face_down=face_down_forward
 		self.tooclose = False;
