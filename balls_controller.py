@@ -83,7 +83,7 @@ class StateMachineController(ReflexController):
 			print "State:",self.state
 			self.print_flag=0
 		if self.state == 'idle':
-			if not self.at_destination(current_pos,start_pos):
+			if not self.at_destination(current_pos,start_pos) or time<self.last_state_end_t+0.5:
 				self.go_to(controller,current_pos,start_pos)
 				self.open_hand()
 			else:
