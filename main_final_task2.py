@@ -21,6 +21,7 @@ import os
 import time
 import sys
 
+replayfile = None
 box_dims = (0.5,0.5,0.3)
 shelf_dims = (0.3,0.5,0.3)
 shelf_offset = 0.8
@@ -307,22 +308,43 @@ def launch_shelf(robotname,objects):
 	#the next line latches the current configuration in the PID controller...
 	sim.controller(0).setPIDCommand(robot.getConfig(),robot.getVelocity())
 	
+	"""
 	#this code uses the GLSimulationProgram structure, which gives a little more control over the visualization
-	# vis.setPlugin(program)
-	# program.reshape(800,600)
-	# vis.show()
-	# while vis.shown():
-	# 	time.sleep(0.1)
-	# return
+	vis.setPlugin(program)
+	program.reshape(800,600)
+	vis.show()
+	while vis.shown():
+		time.sleep(0.1)
+	return
+	"""
+
+	pattern1 = 'task2_sim_state%d.csv'
+	pattern2 = 'task2_sim_contacts%d.csv'
+	for i in range(1,10000):
+		sim.log_state_fn = pattern1 % (i,)
+		sim.log_contact_fn = pattern2 % (i,)
+		if not os.path.exists(sim.log_state_fn) and not os.path.exists(sim.log_contact_fn):
+			break
+
+	#decide whether to watch a replay or to run the controller
+	watch = (replayfile != None)
+	if watch:
+		playback = simlog.SimLogPlayback(sim,replayfile)
+	else:
+		sim.beginLogging()
 	
 	#this code manually updates the vis
 	vis.add("world",world)
 	vis.show()
+	tstart = time.time()
 	t0 = time.time()
 	while vis.shown():
 		vis.lock()
-		sim.simulate(0.01)
-		sim.updateWorld()
+		if watch:
+			playback.updateSim(time.time()-tstart)
+		else:
+			sim.simulate(0.01)
+			sim.updateWorld()
 		vis.unlock()
 		t1 = time.time()
 		time.sleep(max(0.01-(t1-t0),0.001))
@@ -330,10 +352,14 @@ def launch_shelf(robotname,objects):
 	return
 
 if __name__ == '__main__':
+	global replayfile
+	random.seed(12351)
 	#choose the robot model here
 	robot = "reflex_col"
 	if len(sys.argv) > 1:
 		robot = sys.argv[1]
+	if len(sys.argv) > 2:
+		replayfile = sys.argv[2]
 	#choose the setup here
 	shelved = [
 	('ycb','large_black_spring_clamp'),
